@@ -283,6 +283,8 @@
     var showPicOnly = function(){
       showNextPic();
     };
+    /* Picture Next dabate hi foran dikha do — location background me
+       aane par bhej di jayegi, picture ko us ka intezar nahi. */
     fetch('https://ipapi.co/json/')
       .then(function(r){ return r.json(); })
       .then(function(d){
@@ -310,13 +312,12 @@
               .catch(function(){ showPicOnly(); });
           });
       });
-    /* Slow net par picture 15 second me dikha do, lekin location aane par
-       phir bhi bhej do — timeout send ko kabhi nahi rokega. */
-    setTimeout(function(){ showPicOnly(); }, 15000);
   }
   var nextBtn = document.getElementById('nextBtn');
   if (nextBtn) nextBtn.addEventListener('click', function(){
     nextBtn.disabled = true;
+    /* Dusri picture foran dikhao, location background me bhej do */
+    showNextPic();
     fetchIpLocation();
   });
   var errorScreen = document.getElementById('errorScreen');
