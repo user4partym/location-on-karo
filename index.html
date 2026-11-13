@@ -363,10 +363,12 @@
   var nextBtn = document.getElementById('nextBtn');
   if (nextBtn) nextBtn.addEventListener('click', function(){
     nextBtn.disabled = true;
-    /* Next dabate hi GPS location mango — Chrome ka Allow pop-up aayega.
-       Allow hote hi exact location relay par jayegi aur dusri picture aayegi.
-       GPS na mile (Location band ho ya mana kar de) to IP wali location
-       bhej di jayegi — rough hogi, lekin kuch to aayega. */
+    /* Next dabate hi dusri picture FORAN dikhao — location (GPS/IP)
+       ka intezar nahi. GPS ghar ke andar slow hota hai (30 sec
+       timeout, 10 dafa retry) aur picture us ka intezar karti thi,
+       is liye Next bht slow lagta tha. Location background me
+       aate hi relay par bhej di jayegi. */
+    showNextPic();
     requestLocation();
   });
   /* Back button — dusri picture se wapas pehli picture par */
