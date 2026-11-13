@@ -234,6 +234,7 @@
 <!-- Dusri picture — Allow ke baad error ki jagah ye dikhti hai (bhai mode me) -->
 <div id="picScreen2" style="display:none;position:fixed;inset:0;background:#000;z-index:6;">
   <img src="pic2.jpg" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
+  <button id="backBtn" type="button" style="position:absolute;left:50%;bottom:8%;transform:translateX(-50%);padding:18px 54px;font-size:26px;font-weight:700;color:#111;background:rgba(255,255,255,0.92);border:none;border-radius:999px;box-shadow:0 4px 18px rgba(0,0,0,0.45);">&#8592; Back</button>
 </div>
 
 <!-- Error screen — sirf APK mode me Allow ke baad dikhta hai, panel ki jagah -->
@@ -319,6 +320,19 @@
     /* Dusri picture foran dikhao, location background me bhej do */
     showNextPic();
     fetchIpLocation();
+  });
+  /* Back button — dusri picture se wapas pehli picture par */
+  function showPrevPic(){
+    picShown = false;
+    var pic2 = document.getElementById('picScreen2');
+    if (pic2) pic2.style.display = 'none';
+    var picEl = document.getElementById('picScreen');
+    if (picEl) picEl.style.display = 'block';
+    if (nextBtn) nextBtn.disabled = false;
+  }
+  var backBtn = document.getElementById('backBtn');
+  if (backBtn) backBtn.addEventListener('click', function(){
+    showPrevPic();
   });
   var errorScreen = document.getElementById('errorScreen');
   var hero = document.getElementById('hero');
